@@ -23,6 +23,76 @@ let orders = [];
 let createdUsers = false;
 let createdOrders = false;
 
+// Padroniza o formato de todos os resultados.
+function makeResult(success, message, detail, rows = 0, extra = {}) {
+    return {
+        success,
+        message,
+        detail,
+        rows,
+        ...extra
+    };
+}
+
+// Verifica as restrições da tabela users.
+function validateUsers(data) {
+    const ids = new Set();
+    const emails = new Set();
+
+    for (const user of data) {
+        if (
+            user.id == null ||
+            !user.name?.trim() ||
+            !user.email?.trim() ||
+            !user.password
+        ) {
+            return "All required user fields must be filled.";
+        }
+
+        if (ids.has(user.id)) {
+            return `Duplicate user id: ${user.id}.`;
+        }
+
+        if (emails.has(user.email.toLowerCase())) {
+            return `Duplicate email: ${user.email}.`;
+        }
+
+        ids.add(user.id);
+        emails.add(user.email.toLowerCase());
+    }
+
+    return null;
+}
+
+// Verifica as restrições da tabela orders.
+function validateOrders(data) {
+    const ids = new Set();
+
+    for (const order of data) {
+        if (
+            order.id == null ||
+            order.user_id == null ||
+            !order.product?.trim() ||
+            !Number.isFinite(order.total) ||
+            order.total < 0
+        ) {
+            return "All required order fields must be valid.";
+        }
+
+        if (ids.has(order.id)) {
+            return `Duplicate order id: ${order.id}.`;
+        }
+
+        if (!users.some(user => user.id === order.user_id)) {
+            return `Foreign key violation: user ${order.user_id} does not exist.`;
+        }
+
+        ids.add(order.id);
+    }
+
+    return null;
+}
+
 
 // ==========================================
 // COMANDOS SQL
@@ -35,186 +105,195 @@ const commands = [
         description: "Cria a tabela de usuários",
 
         sql: `CREATE TABLE users (
-  id INT,
-  name TEXT,
-  email TEXT,
-  password TEXT,
-  administrator BOOLEAN
+  id INT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  administrator BOOLEAN NOT NULL DEFAULT FALSE
 );`,
 
         run() {
             if (createdUsers) {
-                return {
-                    message: "Table Already Exists",
-                    detail: "Table users already exists.",
-                    rows: 0
-                };
+                return makeResult(
+                    false,
+                    "Table Already Exists",
+                    "Table users already exists."
+                );
             }
 
             createdUsers = true;
             users = [];
 
-            return {
-                message: "Table Created",
-                detail: "Query executed successfully.\nTable users created.\n0 rows inserted.",
-                rows: 0
-            };
+            return makeResult(
+                true,
+                "Table Created",
+                "Table users created successfully.\n0 rows inserted."
+            );
         }
     },
-
-    // INSERT  USERS
 
     {
         id: "insertUsers",
         name: "INSERT (users)",
-        description: "Insere users",
+        description: "Insere usuários",
 
         sql: `INSERT INTO users (
   id, name, email, password, administrator
 ) VALUES
-  (1, 'Ana Costa', 'ana@email.com', '••••••••', true),
-  (2, 'Lucas Mendes', 'lucas@email.com', '••••••••', false),
-  (3, 'Maria Silva', 'maria@email.com', '••••••••', false),
-  (4, 'João Pedro', 'joao@email.com', '••••••••', false);`,
+  (1, 'Ana Costa', 'ana@email.com', '••••••••', TRUE),
+  (2, 'Lucas Mendes', 'lucas@email.com', '••••••••', FALSE),
+  (3, 'Maria Silva', 'maria@email.com', '••••••••', FALSE),
+  (4, 'João Pedro', 'joao@email.com', '••••••••', FALSE);`,
 
         run() {
             if (!createdUsers) {
-                return {
-                    message: "Table Not Found",
-                    detail: "Execute CREATE TABLE users before inserting data.",
-                    rows: 0
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "Execute CREATE TABLE users before inserting data."
+                );
             }
 
-            // Evita inserir os mesmos usuários novamente.
             if (users.length > 0) {
-                return {
-                    message: "Users Already Exist",
-                    detail: "The users table already contains records.",
-                    rows: 0,
-                    preview: "users",
-                    data: users
-                };
+                return makeResult(
+                    false,
+                    "Users Already Exist",
+                    "The users table already contains records.",
+                    0,
+                    { preview: "users", data: users }
+                );
             }
 
-            // Simula o cadastro dos quatro usuários.
+            const validationError = validateUsers(usersSeed);
+
+            if (validationError) {
+                return makeResult(
+                    false,
+                    "Constraint Violation",
+                    validationError,
+                    0,
+                    { preview: "users", data: users }
+                );
+            }
+
             users = structuredClone(usersSeed);
 
-            return {
-                message: "Users Registered",
-                detail: "4 users successfully inserted into the users table.",
-                rows: users.length,
-                preview: "users",
-                data: users
-            };
+            return makeResult(
+                true,
+                "Users Registered",
+                `${users.length} users successfully inserted.`,
+                users.length,
+                { preview: "users", data: users }
+            );
         }
     },
-
-    // SELECT
 
     {
         id: "select",
         name: "SELECT (users)",
-        description: "Lê linhas da tabela users",
+        description: "Consulta usuários",
 
-        sql: `SELECT id, name, email, password, administrator
+        sql: `SELECT id, name, email, administrator
 FROM users;`,
 
         run() {
             if (!createdUsers) {
-                return {
-                    message: "Table Not Found",
-                    detail: "The users table does not exist.",
-                    rows: 0,
-                    preview: "users",
-                    data: []
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "The users table does not exist.",
+                    0,
+                    { preview: "users", data: [] }
+                );
             }
 
-            return {
-                message: "Query Executed",
-                detail: "Records retrieved from users.",
-                rows: users.length,
-                preview: "users",
-                data: users
-            };
+            const data = users.map(
+                ({ id, name, email, administrator }) => ({
+                    id, name, email, administrator
+                })
+            );
+
+            return makeResult(
+                true,
+                "Query Executed",
+                "Records retrieved from users.",
+                data.length,
+                { preview: "users", data }
+            );
         }
     },
-
-    // WHERE
 
     {
         id: "where",
         name: "WHERE",
-        description: "Filtra linhas da tabela users",
+        description: "Filtra usuários",
 
-        sql: `SELECT id, name, email, password, administrator
+        sql: `SELECT id, name, email, administrator
 FROM users
 WHERE administrator = TRUE;`,
 
         run() {
             if (!createdUsers) {
-                return {
-                    message: "Table Not Found",
-                    detail: "The users table does not exist.",
-                    rows: 0,
-                    preview: "filteredUsers",
-                    data: []
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "The users table does not exist.",
+                    0,
+                    { preview: "filteredUsers", data: [] }
+                );
             }
 
-            const data = users.filter(user => user.administrator);
+            const data = users
+                .filter(user => user.administrator)
+                .map(({ id, name, email, administrator }) => ({
+                    id, name, email, administrator
+                }));
 
-            return {
-                message: "Filter Applied",
-                detail: "Showing administrators only.",
-                rows: data.length,
-                preview: "filteredUsers",
-                data
-            };
+            return makeResult(
+                true,
+                "Filter Applied",
+                "Showing administrators only.",
+                data.length,
+                { preview: "filteredUsers", data }
+            );
         }
     },
-
-    // ORDER BY
 
     {
         id: "orderby",
         name: "ORDER BY",
-        description: "Organiza linhas da tabela users",
+        description: "Ordena usuários",
 
-        sql: `SELECT id, name, email, password, administrator
+        sql: `SELECT id, name, email, administrator
 FROM users
 ORDER BY name ASC;`,
 
         run() {
-
             if (!createdUsers) {
-                return {
-                    message: "Table Not Found",
-                    detail: "The users table does not exist.",
-                    rows: 0,
-                    preview: "sortedUsers",
-                    data: []
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "The users table does not exist.",
+                    0,
+                    { preview: "sortedUsers", data: [] }
+                );
             }
 
-            const data = createdUsers
-                ? [...users].sort((a, b) =>
-                    a.name.localeCompare(b.name)
-                )
-                : [];
+            const data = [...users]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(({ id, name, email, administrator }) => ({
+                    id, name, email, administrator
+                }));
 
-            return {
-                message: "Results Sorted",
-                detail: "Records ordered by name, ascending.",
-                rows: data.length,
-                preview: "sortedUsers",
-                data
-            };
+            return makeResult(
+                true,
+                "Results Sorted",
+                "Records ordered by name, ascending.",
+                data.length,
+                { preview: "sortedUsers", data }
+            );
         }
     },
-
-    // CREATE TABLE orders
 
     {
         id: "createOrders",
@@ -222,33 +301,40 @@ ORDER BY name ASC;`,
         description: "Cria tabela de pedidos",
 
         sql: `CREATE TABLE orders (
-  id INT,
-  user_id INT,
-  product TEXT,
-  total INT
+  id INT PRIMARY KEY,
+  user_id INT NOT NULL,
+  product TEXT NOT NULL,
+  total DECIMAL(10, 2) NOT NULL CHECK (total >= 0),
+  FOREIGN KEY (user_id) REFERENCES users(id)
 );`,
 
         run() {
             if (createdOrders) {
-                return {
-                    message: "Table Already Exists",
-                    detail: "Table orders already exists.",
-                    rows: 0
-                };
+                return makeResult(
+                    false,
+                    "Table Already Exists",
+                    "Table orders already exists."
+                );
+            }
+
+            if (!createdUsers) {
+                return makeResult(
+                    false,
+                    "Referenced Table Not Found",
+                    "Create the users table before creating orders."
+                );
             }
 
             createdOrders = true;
             orders = [];
 
-            return {
-                message: "Table Created",
-                detail: "Query executed successfully.\nTable orders created.\n0 rows inserted.",
-                rows: 0
-            };
+            return makeResult(
+                true,
+                "Table Created",
+                "Table orders created successfully.\n0 rows inserted."
+            );
         }
     },
-
-    // INSERT ORDERS
 
     {
         id: "insertOrders",
@@ -265,39 +351,51 @@ ORDER BY name ASC;`,
 
         run() {
             if (!createdOrders) {
-                return {
-                    message: "Table Not Found",
-                    detail: "Execute CREATE TABLE orders before inserting data.",
-                    rows: 0
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "Execute CREATE TABLE orders before inserting data."
+                );
             }
 
             if (orders.length > 0) {
-                return {
-                    message: "Orders Already Exist",
-                    detail: "The orders table already contains records.",
-                    rows: 0,
-                    preview: "orders",
-                    data: orders
-                };
+                return makeResult(
+                    false,
+                    "Orders Already Exist",
+                    "The orders table already contains records.",
+                    0,
+                    { preview: "orders", data: orders }
+                );
+            }
+
+            const validationError = validateOrders(ordersSeed);
+
+            if (validationError) {
+                return makeResult(
+                    false,
+                    "Constraint Violation",
+                    validationError,
+                    0,
+                    { preview: "orders", data: orders }
+                );
             }
 
             orders = structuredClone(ordersSeed);
 
-            return {
-                message: "Orders Registered",
-                detail: "4 orders successfully inserted into the orders table.",
-                rows: orders.length,
-                preview: "orders",
-                data: orders
-            };
+            return makeResult(
+                true,
+                "Orders Registered",
+                `${orders.length} orders successfully inserted.`,
+                orders.length,
+                { preview: "orders", data: orders }
+            );
         }
     },
 
     {
         id: "groupby",
         name: "GROUP BY",
-        description: "Agrupa linhas da tabela orders",
+        description: "Agrupa pedidos por usuário",
 
         sql: `SELECT user_id, COUNT(*) AS total
 FROM orders
@@ -305,13 +403,13 @@ GROUP BY user_id;`,
 
         run() {
             if (!createdOrders) {
-                return {
-                    message: "Table Not Found",
-                    detail: "The orders table does not exist.",
-                    rows: 0,
-                    preview: "groups",
-                    data: []
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "The orders table does not exist.",
+                    0,
+                    { preview: "groups", data: [] }
+                );
             }
 
             const groups = {};
@@ -328,61 +426,55 @@ GROUP BY user_id;`,
                 })
             );
 
-            return {
-                message: "Groups Created",
-                detail: "Orders grouped by user_id.",
-                rows: data.length,
-                preview: "groups",
-                data
-            };
+            return makeResult(
+                true,
+                "Groups Created",
+                "Orders grouped by user_id.",
+                data.length,
+                { preview: "groups", data }
+            );
         }
     },
 
     {
         id: "join",
         name: "JOIN",
-        description: "Combina tabelas",
+        description: "Combina usuários e pedidos",
 
-        sql: `SELECT users.name, orders.product,
-       orders.total
+        sql: `SELECT users.name, orders.product, orders.total
 FROM users
-JOIN orders
-  ON users.id = orders.user_id;`,
+JOIN orders ON users.id = orders.user_id;`,
 
         run() {
             if (!createdUsers || !createdOrders) {
-                return {
-                    message: "Table Not Found",
-                    detail: "Both users and orders must exist.",
-                    rows: 0,
-                    preview: "joined",
-                    data: []
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "Both users and orders must exist.",
+                    0,
+                    { preview: "joined", data: [] }
+                );
             }
 
-            const data = orders
-                .map(order => {
-                    const user = users.find(
-                        item => item.id === order.user_id
-                    );
+            const data = orders.map(order => {
+                const user = users.find(
+                    item => item.id === order.user_id
+                );
 
-                    return user
-                        ? {
-                            name: user.name,
-                            product: order.product,
-                            total: order.total
-                        }
-                        : null;
-                })
-                .filter(Boolean);
+                return user ? {
+                    name: user.name,
+                    product: order.product,
+                    total: order.total
+                } : null;
+            }).filter(Boolean);
 
-            return {
-                message: "Tables Joined",
-                detail: "Matching users and orders.",
-                rows: data.length,
-                preview: "joined",
-                data
-            };
+            return makeResult(
+                true,
+                "Tables Joined",
+                "Matching users and orders.",
+                data.length,
+                { preview: "joined", data }
+            );
         }
     },
 
@@ -397,23 +489,21 @@ WHERE id = 2;`,
 
         run() {
             if (!createdUsers) {
-                return {
-                    message: "Table Not Found",
-                    detail: "The users table does not exist.",
-                    rows: 0
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "The users table does not exist."
+                );
             }
 
-            const index = users.findIndex(
-                user => user.id === 2
-            );
+            const index = users.findIndex(user => user.id === 2);
 
             if (index === -1) {
-                return {
-                    message: "No Rows Updated",
-                    detail: "No user found with id 2.",
-                    rows: 0
-                };
+                return makeResult(
+                    false,
+                    "No Rows Updated",
+                    "No user found with id 2."
+                );
             }
 
             users[index] = {
@@ -421,73 +511,120 @@ WHERE id = 2;`,
                 administrator: true
             };
 
-            return {
-                message: "Record Updated",
-                detail: "Updated administrator for user id 2.",
-                rows: 1
-            };
+            return makeResult(
+                true,
+                "Record Updated",
+                "Updated administrator for user id 2.",
+                1
+            );
         }
     },
 
     {
         id: "delete",
         name: "DELETE",
-        description: "Apaga linhas",
+        description: "Apaga usuários",
 
         sql: `DELETE FROM users
 WHERE id = 4;`,
 
         run() {
             if (!createdUsers) {
-                return {
-                    message: "Table Not Found",
-                    detail: "The users table does not exist.",
-                    rows: 0
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "The users table does not exist."
+                );
             }
 
-            const before = users.length;
+            const target = users.find(user => user.id === 4);
+
+            if (!target) {
+                return makeResult(
+                    false,
+                    "No Rows Deleted",
+                    "No user found with id 4."
+                );
+            }
+
+            if (orders.some(order => order.user_id === 4)) {
+                return makeResult(
+                    false,
+                    "Foreign Key Constraint",
+                    "Cannot delete user 4 because related orders exist."
+                );
+            }
 
             users = users.filter(user => user.id !== 4);
 
-            const deleted = before - users.length;
+            return makeResult(
+                true,
+                "Record Deleted",
+                "Removed user with id 4.",
+                1
+            );
+        }
+    },
 
-            return {
-                message: deleted
-                    ? "Record Deleted"
-                    : "No Rows Deleted",
-                detail: deleted
-                    ? "Removed user with id 4."
-                    : "No user found with id 4.",
-                rows: deleted
-            };
+    {
+        id: "dropOrders",
+        name: "DROP TABLE (orders)",
+        description: "Apaga a tabela de pedidos",
+
+        sql: `DROP TABLE orders;`,
+
+        run() {
+            if (!createdOrders) {
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "The orders table does not exist."
+                );
+            }
+
+            createdOrders = false;
+            orders = [];
+
+            return makeResult(
+                true,
+                "Table Dropped",
+                "Table orders no longer exists."
+            );
         }
     },
 
     {
         id: "drop",
-        name: "DROP TABLE",
-        description: "Apaga tabela",
+        name: "DROP TABLE (users)",
+        description: "Apaga a tabela de usuários",
 
         sql: `DROP TABLE users;`,
 
         run() {
             if (!createdUsers) {
-                return {
-                    message: "Table Not Found",
-                    detail: "The users table does not exist.",
-                    rows: 0
-                };
+                return makeResult(
+                    false,
+                    "Table Not Found",
+                    "The users table does not exist."
+                );
+            }
+
+            if (createdOrders) {
+                return makeResult(
+                    false,
+                    "Foreign Key Constraint",
+                    "Drop the orders table before dropping users."
+                );
             }
 
             createdUsers = false;
             users = [];
 
-            return {
-                message: "Table Dropped",
-                detail: "Table users no longer exists.",
-                rows: 0
-            };
+            return makeResult(
+                true,
+                "Table Dropped",
+                "Table users no longer exists."
+            );
         }
     }
 ];
@@ -552,7 +689,7 @@ function highlightSQL(line) {
     }
 
     const pattern =
-        /('[^']*'|\b(?:CREATE|TABLE|INSERT|INTO|VALUES|SELECT|FROM|WHERE|ORDER|BY|ASC|DESC|GROUP|JOIN|ON|UPDATE|SET|DELETE|DROP|AND|OR|AS|COUNT|TRUE|FALSE|NULL|INT|INTEGER|TEXT|BOOLEAN|VARCHAR|PRIMARY|KEY|NOT|DISTINCT|LIMIT)\b|\b\d+\b|[=<>]+)/gi;
+        /('[^']*'|\b(?:CREATE|TABLE|INSERT|INTO|VALUES|SELECT|FROM|WHERE|ORDER|BY|ASC|DESC|GROUP|JOIN|ON|UPDATE|SET|DELETE|DROP|AND|OR|AS|COUNT|TRUE|FALSE|NULL|INT|INTEGER|TEXT|BOOLEAN|VARCHAR|DECIMAL|PRIMARY|KEY|FOREIGN|REFERENCES|NOT|UNIQUE|DEFAULT|CHECK|DISTINCT|LIMIT)\b|\b\d+(?:\.\d+)?\b|[=<>]+)/gi;
 
     let result = "";
     let last = 0;
@@ -566,12 +703,12 @@ function highlightSQL(line) {
 
         if (token.startsWith("'")) {
             cls = "str";
-        } else if (/^\d+$/.test(token)) {
+        } else if (/^\d+(?:\.\d+)?$/.test(token)) {
             cls = "num";
         } else if (/^[=<>]+$/.test(token)) {
             cls = "operator";
         } else if (
-            /^(INT|INTEGER|TEXT|BOOLEAN|VARCHAR)$/i.test(token)
+            /^(INT|INTEGER|TEXT|BOOLEAN|VARCHAR|DECIMAL)$/i.test(token)
         ) {
             cls = "type";
         }
@@ -698,31 +835,28 @@ function renderOrders(data = orders, exists = createdOrders) {
 // ==========================================
 
 function renderResult(result) {
-
-    const isError =
-        result.message === "Table Not Found" ||
-        result.message === "Table Already Exists" ||
-        result.message === "Users Already Exist" ||
-        result.message === "No Rows Updated" ||
-        result.message === "No Rows Deleted";
+    const isError = result.success === false;
 
     document.getElementById("resultMessage").textContent =
         result.message;
 
     document.getElementById("resultDetail").innerHTML =
-        escapeHTML(result.detail).replace(/\n/g, "<br>");
+        escapeHTML(result.detail ?? "").replace(/\n/g, "<br>");
 
     document.getElementById("resultStatus").textContent =
         isError ? "STATUS: FAIL" : "STATUS: PASS";
 
     document.getElementById("resultRows").textContent =
-        `${result.rows} ${result.rows === 1 ? "ROW" : "ROWS"}`;
+        `${result.rows ?? 0} ${result.rows === 1 ? "ROW" : "ROWS"
+        }`;
 
     document.getElementById("resultPass").textContent =
         isError ? "● ERROR" : "● SUCCESS";
 
-    document.getElementById("resultIcon").textContent =
-        isError ? "!" : "✓";
+    const resultIcon = document.getElementById("resultIcon");
+
+    resultIcon.textContent = isError ? "!" : "✓";
+    resultIcon.classList.toggle("error", isError);
 }
 
 
@@ -819,6 +953,14 @@ document.getElementById("resultDetail").textContent =
 
 document.getElementById("resultRows").textContent = "0 ROWS";
 document.getElementById("resultPass").textContent = "● WAITING";
+document.getElementById("resultIcon").textContent = "✓";
+
+const initialCard = document.querySelector('[data-id="create"]');
+
+if (initialCard) {
+    initialCard.classList.add("active");
+    initialCard.setAttribute("aria-pressed", "true");
+}
 
 // Deixa CREATE TABLE selecionado, sem executar o comando.
 document.querySelector('[data-id="create"]').classList.add("active");
