@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL — Interactive Lab</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@1,6..72,400;1,6..72,500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="./assets/style.css">
+</head>
+
+<body>
+    <div class="app">
+
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-name">
+                <img src="./assets/logo.png" alt="Logo" class="brand-logo">
+                </div>
+                <div class="brand-tag">LAB / 001</div>
+            </div>
+
+            <div class="sidebar-heading">
+                <div class="eyebrow">Database fundamentals</div>
+                <h1>SQL<span style="color:var(--signal)">.</span></h1>
+                <p class="intro">
+                    Dez comandos essenciais para consultar, organizar e transformar dados.
+                </p>
+            </div>
+
+            <nav class="card-list" id="cardList" aria-label="Comandos SQL"></nav>
+
+            <div class="sidebar-footer">
+                <span>INTERACTIVE GUIDE</span>
+                <span>v1.0.0</span>
+            </div>
+        </aside>
+
+        <main class="workspace">
+            <header class="topbar">
+                <div>
+                    <h2 class="page-title">SQL Playground</h2>
+                    <div class="page-subtitle">Um ambiente visual para aprender SQL.</div>
+                </div>
+                <div class="session">
+                    <span class="status-dot"></span>
+                    <span>SESSION ACTIVE</span>
+                </div>
+            </header>
+
+            <div class="workspace-meta">
+                <span>DATABASE: <strong>playground_db</strong></span>
+                <span>ENGINE: <strong>SQL SIMULATOR</strong></span>
+                <span>MODE: <strong>LEARNING</strong></span>
+            </div>
+
+            <section class="editor-grid">
+
+                <article class="panel">
+                    <header class="panel-header">
+                        <div class="panel-title"><span class="file-icon">◈</span>query.sql</div>
+                        <span class="panel-tag">SQL</span>
+                    </header>
+                    <div class="code-content" id="queryCode"></div>
+                    <div class="table-footer">
+                        <span id="queryLines">1 LINE</span>
+                        <span>UTF-8</span>
+                    </div>
+                </article>
+
+                <article class="panel">
+                    <header class="panel-header">
+                        <div class="panel-title"><span class="file-icon">▦</span>users</div>
+                        <span class="panel-tag" id="usersCount">TABLE</span>
+                    </header>
+                    <div class="table-wrap" id="usersTable"></div>
+                    <div class="table-footer">
+                        <span id="usersFooter">SCHEMA / USERS</span>
+                        <span>PREVIEW</span>
+                    </div>
+                </article>
+
+                <article class="panel">
+                    <header class="panel-header">
+                        <div class="panel-title"><span class="file-icon">▦</span>orders</div>
+                        <span class="panel-tag" id="ordersCount">TABLE</span>
+                    </header>
+                    <div class="table-wrap" id="ordersTable"></div>
+                    <div class="table-footer">
+                        <span id="ordersFooter">SCHEMA / ORDERS</span>
+                        <span>PREVIEW</span>
+                    </div>
+                </article>
+
+                <article class="panel">
+                    <header class="panel-header">
+                        <div class="panel-title"><span class="file-icon">◉</span>Result</div>
+                        <span class="panel-tag">OUTPUT</span>
+                    </header>
+
+                    <div class="result-body">
+                        <div class="result-status">
+                            <div class="result-check" id="resultIcon">✓</div>
+                            <div>
+                                <div class="result-label" id="resultStatus">STATUS: PASS</div>
+                                <div class="result-message" id="resultMessage">Table Created</div>
+                            </div>
+                        </div>
+                        <div class="result-detail" id="resultDetail">
+                            Query executed successfully.<br>Table users created.
+                        </div>
+                        <div class="result-bottom">
+                            <span id="resultRows">0 ROWS</span>
+                            <span class="pass" id="resultPass">● SUCCESS</span>
+                        </div>
+                    </div>
+                </article>
+
+            </section>
+
+            <footer class="workspace-footer">
+                <span>FIELDNOTES / DATABASE SERIES</span>
+                <span>LESS NOISE. MORE MEANING.</span>
+            </footer>
+        </main>
+    </div>
+
+    <script src="./assets/script.js"></script>
+        
+</body>
+
+</html>
