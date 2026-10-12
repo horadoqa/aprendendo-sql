@@ -3,10 +3,10 @@
 // ==========================================
 
 const usersSeed = [
-    { id: 1, name: "Ana Costa", email: "ana@email.com", password: "••••••••", administrator: true },
-    { id: 2, name: "Lucas Mendes", email: "lucas@email.com", password: "••••••••", administrator: false },
-    { id: 3, name: "Maria Silva", email: "maria@email.com", password: "••••••••", administrator: false },
-    { id: 4, name: "João Pedro", email: "joao@email.com", password: "••••••••", administrator: false }
+    { id: 1, name: "Ricardo Fahham", email: "ricardo.fahham@email.com", password: "••••••••", administrator: true },
+    { id: 2, name: "Lucas Mendes", email: "lucas.mendes@email.com", password: "••••••••", administrator: false },
+    { id: 3, name: "Maria Silva", email: "maria.silva@email.com", password: "••••••••", administrator: false },
+    { id: 4, name: "João Pedro", email: "joao.pedro@email.com", password: "••••••••", administrator: false }
 ];
 
 const ordersSeed = [
@@ -140,10 +140,10 @@ const commands = [
         sql: `INSERT INTO users (
   id, name, email, password, administrator
 ) VALUES
-  (1, 'Ana Costa', 'ana@email.com', '••••••••', TRUE),
-  (2, 'Lucas Mendes', 'lucas@email.com', '••••••••', FALSE),
-  (3, 'Maria Silva', 'maria@email.com', '••••••••', FALSE),
-  (4, 'João Pedro', 'joao@email.com', '••••••••', FALSE);`,
+  (1, 'Ricardo Fahham', 'ricardo.fahham@email.com', '••••••••', TRUE),
+  (2, 'Lucas Mendes', 'lucas.mendes@email.com', '••••••••', FALSE),
+  (3, 'Maria Silva', 'maria.silva@email.com', '••••••••', FALSE),
+  (4, 'João Pedro', 'joao.pedro@email.com', '••••••••', FALSE);`,
 
         run() {
             if (!createdUsers) {
